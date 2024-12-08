@@ -1,43 +1,44 @@
 pipeline {
-    agent any
-    
+    agent {label 'master'}
+
     stages {
         stage('GetCode') {
             steps {
                git 'https://github.com/Trophicdiamond/unir.git'
             }
         }
-        
+
         stage('Build') {
             steps {
                 sh 'ls -la'
-                sh 'pwd'
+                echo "${WORKSPACE}"
+                
             }
         }
-        
+
         stage('Tests') {
             parallel {
                 stage('Unit') {
                     steps {
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
                             sh '''
-                                export PYTHONPATH='/var/lib/jenkins/workspace/Clases Unir/Clase 4-12 Test1'
+                                export PYTHONPATH="${WORKSPACE}"
                                 pytest --junitxml=result-unit.xml test/unit
                             '''
                         }
                     }
                 }
-                
+
                 stage('Rest') {
                     steps{
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
-                            
+
                             sh '''
-                                export FLASK_APP='/var/lib/jenkins/workspace/Clases Unir/Clase 4-12 Test1/app/api.py'
+                                export FLASK_APP="${WORKSPACE}/app/api.py"
                                 flask run &
                                 java -jar '/var/lib/jenkins/wiremock/wiremock-standalone-3.10.0.jar' --port 9090 --root-dir '/var/lib/jenkins/wiremock/mappings/' &
                                 sleep 10
-                                export PYTHONPATH='/var/lib/jenkins/workspace/Clases Unir/Clase 4-12 Test1'
+                                export PYTHONPATH="${WORKSPACE}"
                                 pytest --junitxml=result-rest.xml test/rest
                             '''
                         }
@@ -45,7 +46,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Results') {
             steps {
                 junit 'result*.xml'
