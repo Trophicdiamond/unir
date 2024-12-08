@@ -1,0 +1,76 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1472.ve4d5eca_143c4">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2218.v56d0cda_37c72"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2218.v56d0cda_37c72">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@4000.v5198556e9cea_">
+    <script>pipeline {
+    agent any
+    
+    stages {
+        stage(&apos;GetCode&apos;) {
+            steps {
+               git &apos;https://github.com/Trophicdiamond/unir.git&apos;
+            }
+        }
+        
+        stage(&apos;Build&apos;) {
+            steps {
+                sh &apos;ls -la&apos;
+                sh &apos;pwd&apos;
+            }
+        }
+        
+        stage(&apos;Tests&apos;) {
+            parallel {
+                stage(&apos;Unit&apos;) {
+                    steps {
+                        catchError(buildResult: &apos;UNSTABLE&apos;, stageResult: &apos;FAILURE&apos;){
+                            sh &apos;&apos;&apos;
+                                export PYTHONPATH=&apos;/var/lib/jenkins/workspace/Clases Unir/Clase 4-12 Test1&apos;
+                                pytest --junitxml=result-unit.xml test/unit
+                            &apos;&apos;&apos;
+                        }
+                    }
+                }
+                
+                stage(&apos;Rest&apos;) {
+                    steps{
+                        catchError(buildResult: &apos;UNSTABLE&apos;, stageResult: &apos;FAILURE&apos;){
+                            
+                            sh &apos;&apos;&apos;
+                                export FLASK_APP=&apos;/var/lib/jenkins/workspace/Clases Unir/Clase 4-12 Test1/app/api.py&apos;
+                                flask run &amp;
+                                java -jar &apos;/var/lib/jenkins/wiremock/wiremock-standalone-3.10.0.jar&apos; --port 9090 --root-dir &apos;/var/lib/jenkins/wiremock/mappings/&apos; &amp;
+                                sleep 10
+                                export PYTHONPATH=&apos;/var/lib/jenkins/workspace/Clases Unir/Clase 4-12 Test1&apos;
+                                pytest --junitxml=result-rest.xml test/rest
+                            &apos;&apos;&apos;
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage(&apos;Results&apos;) {
+            steps {
+                junit &apos;result*.xml&apos;
+            }
+        }
+    }
+}
+</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
