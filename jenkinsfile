@@ -1,0 +1,67 @@
+pipeline {
+    agent none
+
+    stages {
+        stage('GetCode') {
+            agent {label 'master'}
+            steps {
+               git url: 'https://github.com/Trophicdiamond/unir.git', branch: 'develop'
+               stash name: 'codigo', includes: '**/*'
+            }
+        }
+
+        stage('Build') {
+            agent {label 'master'}
+            steps {
+                sh 'ls -la'
+                echo "${WORKSPACE}"
+
+            }
+        }
+
+        stage('Tests') {
+            parallel {
+                stage('Unit') {
+                    agent {label 'agente1'}
+                    steps {
+                        unstash 'codigo'
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
+                            sh '''
+                                export PYTHONPATH="${WORKSPACE}"
+                                pytest --junitxml=result-unit.xml test/unit
+                            '''
+                        }
+                        stash name: 'unit_results', includes: '*.xml'
+                    }
+                }
+
+                stage('Rest') {
+                    agent {label 'agente2'}
+                    steps{
+                        unstash 'codigo'
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
+                            sh '''
+                                export FLASK_APP="${WORKSPACE}/app/api.py"
+                                flask run &
+                                java -jar '/home/agente2/jenkins/wiremock/wiremock-standalone-3.10.0.jar' --port 9090 --root-dir '/home/agente2/jenkins/wiremock/' &
+                                sleep 10
+                                export PYTHONPATH="${WORKSPACE}"
+                                pytest --junitxml=result-rest.xml test/rest
+                            '''
+                        }
+                        stash name: 'rest_results', includes: '*.xml'
+                    }
+                }
+            }
+        }
+
+        stage('Results') {
+            agent {label 'master'}
+            steps {
+                unstash 'unit_results'
+                unstash 'rest_results'
+                junit 'result*.xml'
+            }
+        }
+    }
+}
