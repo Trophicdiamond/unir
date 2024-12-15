@@ -4,14 +4,24 @@ pipeline {
         stage('GetCode') {
             agent {label 'master'}
             steps {
-               git 'https://github.com/Trophicdiamond/unir.git'
-               stash name: 'gitcode', includes: '**/*'
+                sh ''' 
+                ls -la
+                whoami
+                hostname
+                '''
+                echo "${WORKSPACE}"
+                git 'https://github.com/Trophicdiamond/unir.git'
+                stash name: 'gitcode', includes: '**/*'
             }
         }
         stage('Build') {
             agent {label 'master'}
             steps {
-                sh 'ls -la'
+                sh ''' 
+                ls -la
+                whoami
+                hostname
+                '''
                 echo "${WORKSPACE}"
                 
             }
@@ -21,6 +31,12 @@ pipeline {
                 stage('Unit') {
                     agent {label 'agente1'}
                     steps {
+                        sh ''' 
+                        ls -la
+                        whoami
+                        hostname
+                        '''
+                        echo "${WORKSPACE}"
                         unstash 'gitcode'
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
                             sh '''
@@ -36,6 +52,12 @@ pipeline {
                 stage('Rest') {
                     agent {label 'agente2'}
                     steps{
+                        sh ''' 
+                        ls -la
+                        whoami
+                        hostname
+                        '''
+                        echo "${WORKSPACE}"
                         unstash 'gitcode'
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE'){
                             sh '''
@@ -51,10 +73,43 @@ pipeline {
                     }
                 }
             
+
+        stage('CleanAgents') {
+            parallel {
+                stage('Clean1') {
+                    agent {label 'agente1'}
+                    steps {
+                        sh ''' 
+                        ls -la
+                        whoami
+                        hostname
+                        '''
+                        deleteDir()
+                    }
+                }
+                stage('Clean2') {
+                    agent {label 'agente2'}
+                    steps{
+                        sh ''' 
+                        ls -la
+                        whoami
+                        hostname
+                        '''
+                        deleteDir()
+                    }
+                }
+            }
+        }
         
         stage('Results') {
             agent {label 'master'}
             steps {
+                sh ''' 
+                ls -la
+                whoami
+                hostname
+                '''
+                echo "${WORKSPACE}"
                 unstash 'xml-unit-logs'
                 unstash 'xml-rest-logs'
                 junit 'result*.xml'
